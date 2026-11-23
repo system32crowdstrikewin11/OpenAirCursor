@@ -13,6 +13,11 @@ val keystoreProps = Properties().apply {
     }
 }
 
+// CI release signing: GitHub Actions exports these from repository secrets.
+val envKeystorePath = System.getenv("KEYSTORE_PATH")
+val hasEnvKeystore = !envKeystorePath.isNullOrBlank()
+val hasReleaseKeystore = keystorePropsFile.exists() || hasEnvKeystore
+
 android {
     namespace = "io.github.system32crowdstrikewin11.openaircursor"
     compileSdk = 35
@@ -23,8 +28,8 @@ android {
         applicationId = "io.github.system32crowdstrikewin11.openaircursor"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
 
         ndk {
             abiFilters += "arm64-v8a"
@@ -56,6 +61,13 @@ android {
                 keyAlias = keystoreProps.getProperty("keyAlias")
                 keyPassword = keystoreProps.getProperty("keyPassword")
             }
+        } else if (hasEnvKeystore) {
+            create("release") {
+                storeFile = file(envKeystorePath!!)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
         }
     }
 
@@ -63,7 +75,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            if (keystorePropsFile.exists()) {
+            if (hasReleaseKeystore) {
                 signingConfig = signingConfigs.getByName("release")
             }
             proguardFiles(
