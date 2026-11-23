@@ -1,0 +1,5 @@
+Initial release of OpenAirCursor:
+- Dual-hand 21-point on-device hand tracking (arm64-v8a)
+- Pinch-to-click, double-click, swipe, long press, pinch-to-zoom, navigation & volume gestures
+- Miuix Compose UI with live Sensitivity, Smoothness, Mirror View, and Mini Preview toggles
+- Fully offline with zero network permissions or telemetry

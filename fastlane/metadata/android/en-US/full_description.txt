@@ -1,0 +1,17 @@
+OpenAirCursor turns your front camera into a touchless, dual-hand spatial pointer for Android—running 100% offline with zero network permissions, zero trackers, and zero Google Play Services.
+
+Show one hand to spawn a single cursor, or raise both hands for two independent cursors and mid-air pinch-to-zoom.
+
+Features:
+* On-device 21-point dual-hand tracking (MediaPipe Hand Landmarker)
+* One-Euro filter + display-rate interpolation with live Sensitivity and Smoothness tuning
+* Optional floating corner camera preview with active tracking zone & mirror toggle
+* Zero INTERNET permission and zero telemetry
+
+Gestures:
+* 1 or 2 hands: Spawns 1 cursor (Cyan) or 2 cursors (Cyan + Magenta)
+* Thumb + Index: Quick pinch = Tap | Double pinch = Double click | Drag = Swipe | Hold = Long press
+* Both hands pinch: Pinch-to-Zoom
+* Thumb + Middle: Quick pinch = Back | Hold = Notifications
+* Thumb + Ring: Quick pinch = Home | Hold = Volume Up
+* Thumb + Pinky: Quick pinch = Recents | Hold = Volume Down
