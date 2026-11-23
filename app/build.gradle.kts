@@ -75,8 +75,12 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            if (hasReleaseKeystore) {
-                signingConfig = signingConfigs.getByName("release")
+            // Fall back to the debug key when no release keystore is configured so
+            // the published APK is still installable. Not for store distribution.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

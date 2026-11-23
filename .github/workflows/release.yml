@@ -92,7 +92,11 @@ jobs:
         run: |
           NAME="${{ steps.version.outputs.name }}"
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/OpenAirCursor-${NAME}.apk"
+          APK=$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -1)
+          if [ -z "$APK" ]; then
+            echo "No release APK found"; ls -la app/build/outputs/apk/release || true; exit 1
+          fi
+          cp "$APK" "dist/OpenAirCursor-${NAME}.apk"
           if [ -f app/build/outputs/mapping/release/mapping.txt ]; then
             cp app/build/outputs/mapping/release/mapping.txt "dist/OpenAirCursor-${NAME}-mapping.txt"
           fi
