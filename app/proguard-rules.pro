@@ -1,4 +1,3 @@
--keep class io.github.system32crowdstrikewin11.openaircursor.NativeBridge { *; }
 -keep class io.github.system32crowdstrikewin11.openaircursor.AirCursorAccessibilityService { *; }
 
 # MediaPipe Tasks & JNI
@@ -16,6 +15,10 @@
     <methods>;
 }
 -dontwarn com.google.protobuf.**
+
+# Excluded telemetry packages (stripped at bytecode level)
+-dontwarn com.google.android.datatransport.**
+-dontwarn com.google.firebase.**
 
 -dontwarn javax.annotation.**
 -dontwarn com.google.errorprone.**

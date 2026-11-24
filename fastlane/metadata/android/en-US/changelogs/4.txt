@@ -1,0 +1,5 @@
+F-Droid readiness release (v1.0.1):
+- Stripped MediaPipe Google DataTransport/Firebase telemetry at bytecode level (zero INTERNET permission)
+- Removed unused NDK/CMake native bridge for lighter, simpler source builds
+- Moved hand_landmarker.task out of git with SHA-256 verified fetch script
+- Pinned Gradle wrapper SHA-256 checksum and deterministic release versioning

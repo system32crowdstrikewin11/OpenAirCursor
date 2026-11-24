@@ -13,3 +13,4 @@ keystore.properties
 *.keystore
 build.log
 .kotlin/
+app/src/main/assets/hand_landmarker.task

@@ -1,85 +1,53 @@
 # OpenAirCursor
 
-Hands-free, camera-driven cursor for Android. A front-camera hand tracker
-(MediaPipe Hand Landmarker) drives one or two on-screen cursors and injects
-taps, swipes, long-presses and system gestures through an accessibility service.
+Touchless, dual-hand mid-air cursor and gesture controller for Android. Uses the
+front camera and on-device 21-point hand tracking (MediaPipe Hand Landmarker) to
+drive one or two cursors and inject taps, swipes, long-presses, and system
+actions through Android's Accessibility Service.
 
-## Features
+- **100% Offline & Tracker-Free:** No `INTERNET` permission, no GMS, and MediaPipe's DataTransport telemetry is stripped at build time.
+- **Dual-Hand Support:** Dynamically spawns 1 cursor (Cyan) or 2 cursors (Cyan + Magenta) with mid-air pinch-to-zoom.
+- **Precision Controls:** One-Euro filter + display-rate smoothing, pre-pinch damping, optional corner preview, mirror mode, and 1-tap `Reset Touch Input` for Android 15/16 `InputDispatcher` recovery.
 
-- 1 or 2 hands → 1 cursor (cyan) or 2 cursors (cyan + magenta)
-- Thumb + index pinch: tap, swipe, long-press
-- Both hands pinch: pinch-to-zoom
-- Thumb + middle: back / notifications
-- Thumb + ring / pinky: home / recents
-- Adjustable sensitivity and smoothing, optional corner preview, mirror mode
+## Gestures
+
+| Gesture | Action |
+| --- | --- |
+| **1 or 2 hands** | Spawns 1 cursor (Cyan) or 2 cursors (Cyan + Magenta) |
+| **Thumb + Index** | Quick pinch = Tap · Double pinch = 2x Click · Drag = Swipe · Hold = Long press |
+| **Both hands pinch** | Pinch-to-Zoom |
+| **Thumb + Middle** | Quick pinch = Back · Hold = Notifications |
+| **Thumb + Ring** | Quick pinch = Home · Hold = Volume Up (repeats while held) |
+| **Thumb + Pinky** | Quick pinch = Recents · Hold = Volume Down (repeats while held) |
 
 ## Requirements
 
-- Android 8.0+ (API 26), arm64-v8a
+- Android 8.0+ (API 26), `arm64-v8a`
 - Front camera
-- Accessibility service enabled for gesture injection
+- Accessibility Service enabled for gesture injection
 
-## Build
+## Building from Source
 
-```sh
-./gradlew :app:assembleDebug
-```
-
-Requires an Android SDK with platform 35, build-tools 35.0.0, NDK 29.0.14206865,
-and CMake on `PATH` (SDK CMake packages are x86_64-only and do not run on
-aarch64 devices such as Termux).
-
-## CI and releases
-
-- **CI** (`.github/workflows/ci.yml`): builds debug and release APKs on every
-  push to `main`, every pull request, and on manual dispatch. The debug APK is
-  uploaded as a workflow artifact.
-- **Release** (`.github/workflows/release.yml`): runs on `v*` tags or manual
-  dispatch, builds the minified release APK, and publishes a GitHub Release
-  containing:
-  - `OpenAirCursor-<version>.apk`
-  - `OpenAirCursor-<version>-mapping.txt` (R8 mapping, for deobfuscating crashes)
-  - `SHA256SUMS.txt`
-
-Cut a release by pushing a tag:
+Requires JDK 17 and Android SDK (platform 35, build-tools 35.0.0).
 
 ```sh
-git tag v1.0.1
-git push origin v1.0.1
+./scripts/fetch-model.sh
+./gradlew :app:assembleRelease
 ```
 
-The version name is taken from the tag (leading `v` stripped) and the version
-code from the workflow run number.
+### Model Provenance
 
-### Release signing
+`scripts/fetch-model.sh` downloads Google's Apache-2.0 licensed MediaPipe Hand Landmarker model (FP16) and verifies its SHA-256 before building:
 
-Release builds are signed with the debug key unless you add these repository
-secrets (Settings → Secrets and variables → Actions):
+- **URL:** `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`
+- **SHA-256:** `fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1`
 
-| Secret | Value |
-| --- | --- |
-| `KEYSTORE_BASE64` | `base64 -w0 release.jks` |
-| `KEYSTORE_PASSWORD` | keystore password |
-| `KEY_ALIAS` | key alias |
-| `KEY_PASSWORD` | key password |
+### Release Signing
 
-A local `keystore.properties` file (`storeFile`, `storePassword`, `keyAlias`,
-`keyPassword`) is also honoured for local release builds and is git-ignored.
+Release builds produce an unsigned APK by default (compatible with F-Droid's signing server). Provide either a git-ignored `keystore.properties` locally or `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD` secrets in GitHub Actions to sign release builds. For local testing without a keystore, pass `-PsignWithDebug=true`.
 
 ## License
 
 Copyright (C) 2026 Dark
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program. If not, see <https://www.gnu.org/licenses/>.
-
-The full license text is in [LICENSE](LICENSE) (GPL-3.0).
+Licensed under the [GNU General Public License v3.0](LICENSE) (or, at your option, any later version).

@@ -115,7 +115,8 @@ private fun AirCursorMainScreen(
     val lastError = remember(refreshTick) { AirCursorAccessibilityService.lastError }
 
     val nativeInfo = remember {
-        runCatching { NativeBridge.version() }.getOrDefault("arm64-v8a")
+        val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
+        "$abi, API ${Build.VERSION.SDK_INT}"
     }
 
     val successColor = if (isDark) Color(0xFF30D158) else Color(0xFF28CD41)

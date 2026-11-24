@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to create (e.g. v1.0.0)"
+        description: "Release tag to create (e.g. v1.0.1)"
         required: true
         type: string
       prerelease:
@@ -27,11 +27,9 @@ jobs:
   release:
     name: Build and publish release
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
 
     env:
-      # Optional: add these repository secrets to sign release builds.
-      # Without them the release APK falls back to the debug signing key.
       KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
       KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
       KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -53,28 +51,29 @@ jobs:
         run: |
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -maxdepth 3 -name sdkmanager -type f | head -1)
-          if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager not found under $SDK_ROOT"; ls -la "$SDK_ROOT"; exit 1
-          fi
-          echo "Using $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses > /dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Fetch and verify model asset
+        run: ./scripts/fetch-model.sh
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Resolve version
+      - name: Verify tag matches app/build.gradle.kts versionName
         id: version
         env:
           INPUT_TAG: ${{ inputs.tag }}
         run: |
-          if [ -n "$INPUT_TAG" ]; then
-            TAG="$INPUT_TAG"
-          else
-            TAG="${GITHUB_REF_NAME}"
+          TAG="${INPUT_TAG:-${GITHUB_REF_NAME}}"
+          NAME="${TAG#v}"
+          GRADLE_VER=$(sed -n 's/^[[:space:]]*versionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -1)
+          if [ "$NAME" != "$GRADLE_VER" ]; then
+            echo "ERROR: Tag ($TAG) does not match versionName ($GRADLE_VER) in app/build.gradle.kts" >&2
+            exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "name=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
       - name: Decode release keystore
         if: env.KEYSTORE_BASE64 != ''
@@ -83,9 +82,6 @@ jobs:
           echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
 
       - name: Build release APK
-        env:
-          VERSION_NAME: ${{ steps.version.outputs.name }}
-          VERSION_CODE: ${{ github.run_number }}
         run: ./gradlew :app:assembleRelease --stacktrace
 
       - name: Collect artifacts
@@ -96,7 +92,7 @@ jobs:
           if [ -z "$APK" ]; then
             echo "No release APK found"; ls -la app/build/outputs/apk/release || true; exit 1
           fi
-          cp "$APK" "dist/OpenAirCursor-${NAME}.apk"
+          cp "$APK" "dist/OpenAirCursor-${NAME}-arm64-v8a.apk"
           if [ -f app/build/outputs/mapping/release/mapping.txt ]; then
             cp app/build/outputs/mapping/release/mapping.txt "dist/OpenAirCursor-${NAME}-mapping.txt"
           fi
