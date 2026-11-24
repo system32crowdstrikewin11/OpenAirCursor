@@ -17,9 +17,5 @@
 }
 -dontwarn com.google.protobuf.**
 
-# Excluded Firelog telemetry packages
--dontwarn com.google.android.datatransport.**
--dontwarn com.google.firebase.**
-
 -dontwarn javax.annotation.**
 -dontwarn com.google.errorprone.**

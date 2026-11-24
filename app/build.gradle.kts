@@ -115,10 +115,11 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
 
-    implementation("com.google.mediapipe:tasks-vision:1.2.1") {
-        exclude(group = "com.google.android.datatransport")
-        exclude(group = "com.google.firebase")
-    }
+    // MediaPipe Tasks log stats through Android DataTransport. Those are real
+    // runtime dependencies of tasks-core: excluding them makes
+    // HandLandmarker.createFromOptions throw NoClassDefFoundError
+    // (TransportRuntime) on the TasksStatsProtoLogger path.
+    implementation("com.google.mediapipe:tasks-vision:1.2.1")
 
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.activity:activity-compose:1.9.3")
