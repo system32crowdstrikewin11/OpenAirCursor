@@ -25,12 +25,9 @@ class HandGestureEngine(
             s1x: Float, s1y: Float, e1x: Float, e1y: Float,
             s2x: Float, s2y: Float, e2x: Float, e2y: Float
         )
-        fun onVolumeUp()
-        fun onVolumeDown()
         fun onBack()
         fun onHome()
         fun onRecents()
-        fun onNotifications()
     }
 
     private data class PosSample(val t: Long, val x: Float, val y: Float)
@@ -93,11 +90,9 @@ class HandGestureEngine(
         var lastTapX = 0f
         var lastTapY = 0f
 
-        // 0 = none, 1 = middle, 2 = ring, 3 = pinky
+        // 0 = none, 1 = middle (Back), 2 = ring (Home), 3 = pinky (Recents)
         var secondaryFinger = 0
         var secondaryStartTime = 0L
-        var secondaryHoldFired = false
-        var lastVolumeRepeatMs = 0L
 
         var lastGlobalActionMs = 0L
         var badge = ""
@@ -112,7 +107,6 @@ class HandGestureEngine(
             indexPinching = false
             dragStarted = false
             secondaryFinger = 0
-            secondaryHoldFired = false
         }
     }
 
@@ -126,18 +120,17 @@ class HandGestureEngine(
     private var zStart1X = 0f
     private var zStart1Y = 0f
 
-    // Clean, responsive pinch hysteresis
+    // Exact 1.0.3 index pinch responsiveness
     private val prePinchRatio = 0.50f
     private val pinchDownRatio = 0.34f
     private val pinchUpRatio = 0.42f
 
-    private val secondaryDownRatio = 0.34f
-    private val secondaryUpRatio = 0.43f
+    // Quick-tap-only secondary navigation gestures (long holds cancel as resting hand)
+    private val secondaryDownRatio = 0.30f
+    private val secondaryUpRatio = 0.40f
+    private val maxSecondaryTapMs = 450L
 
     private val longPressMs = 650L
-    private val notifHoldMs = 550L
-    private val volumeHoldMs = 480L
-    private val volumeRepeatMs = 300L
     private val doublePinchWindowMs = 520L
     private val globalCooldownMs = 600L
     private val dropoutGraceMs = 160L
@@ -358,7 +351,6 @@ class HandGestureEngine(
             slot.indexPinching = false
             slot.dragStarted = false
             slot.secondaryFinger = 0
-            slot.secondaryHoldFired = false
             slot.pinchProgress = 0f
             return
         }
@@ -373,14 +365,13 @@ class HandGestureEngine(
 
         val dragThresholdPx = 32f * density
 
-        // 1. Simple Thumb + Index: Click / Double-Pinch (2x Click) / Drag Swipe / Long Press
+        // 1. Thumb + Index: Click / Double-Pinch (2x Click) / Drag Swipe / Long Press
         if (!slot.indexPinching) {
             if (indexRatio < pinchDownRatio) {
                 slot.indexPinching = true
                 slot.dragStarted = false
                 slot.indexStartTime = now
                 slot.secondaryFinger = 0
-                slot.secondaryHoldFired = false
 
                 val steady = slot.history.lastOrNull { now - it.t >= 50L }
                 if (steady != null && hypot(slot.x - steady.x, slot.y - steady.y) <= 24f * density) {
@@ -442,19 +433,19 @@ class HandGestureEngine(
 
         if (slot.indexPinching || zoomActive) return
 
-        // 2. Classic secondary gestures + Volume on Ring/Pinky hold
+        // 2. Simple navigation gestures only: quick pinch for Back / Home / Recents
         if (slot.secondaryFinger == 0) {
-            var bestFinger = 0
-            var bestRatio = secondaryDownRatio
-            if (middleRatio < bestRatio) { bestRatio = middleRatio; bestFinger = 1 }
-            if (ringRatio < bestRatio) { bestRatio = ringRatio; bestFinger = 2 }
-            if (pinkyRatio < bestRatio) { bestRatio = pinkyRatio; bestFinger = 3 }
+            if (indexRatio > pinchUpRatio) {
+                var bestFinger = 0
+                var bestRatio = secondaryDownRatio
+                if (middleRatio < bestRatio) { bestRatio = middleRatio; bestFinger = 1 }
+                if (ringRatio < bestRatio) { bestRatio = ringRatio; bestFinger = 2 }
+                if (pinkyRatio < bestRatio) { bestRatio = pinkyRatio; bestFinger = 3 }
 
-            if (bestFinger != 0) {
-                slot.secondaryFinger = bestFinger
-                slot.secondaryStartTime = now
-                slot.secondaryHoldFired = false
-                slot.lastVolumeRepeatMs = 0L
+                if (bestFinger != 0) {
+                    slot.secondaryFinger = bestFinger
+                    slot.secondaryStartTime = now
+                }
             }
         } else {
             val activeRatio = when (slot.secondaryFinger) {
@@ -462,52 +453,13 @@ class HandGestureEngine(
                 2 -> ringRatio
                 else -> pinkyRatio
             }
-            val heldMs = now - slot.secondaryStartTime
 
-            when (slot.secondaryFinger) {
-                1 -> {
-                    // Middle hold -> Notifications
-                    if (!slot.secondaryHoldFired && heldMs >= notifHoldMs) {
-                        slot.secondaryHoldFired = true
-                        if (now - slot.lastGlobalActionMs > globalCooldownMs) {
-                            slot.lastGlobalActionMs = now
-                            setBadge(slot, "NOTIFS", now + 600)
-                            listener.onNotifications()
-                        }
-                    }
-                }
-                2 -> {
-                    // Ring hold -> Volume Up (repeats while held)
-                    if (heldMs >= volumeHoldMs &&
-                        (!slot.secondaryHoldFired || now - slot.lastVolumeRepeatMs >= volumeRepeatMs)
-                    ) {
-                        slot.secondaryHoldFired = true
-                        slot.lastVolumeRepeatMs = now
-                        setBadge(slot, "VOL +", now + 450)
-                        listener.onVolumeUp()
-                    }
-                }
-                3 -> {
-                    // Pinky hold -> Volume Down (repeats while held)
-                    if (heldMs >= volumeHoldMs &&
-                        (!slot.secondaryHoldFired || now - slot.lastVolumeRepeatMs >= volumeRepeatMs)
-                    ) {
-                        slot.secondaryHoldFired = true
-                        slot.lastVolumeRepeatMs = now
-                        setBadge(slot, "VOL -", now + 450)
-                        listener.onVolumeDown()
-                    }
-                }
-            }
-
-            // Quick release -> classic Back / Home / Recents
             if (activeRatio > secondaryUpRatio) {
                 val finger = slot.secondaryFinger
-                val wasHold = slot.secondaryHoldFired
+                val heldMs = now - slot.secondaryStartTime
                 slot.secondaryFinger = 0
-                slot.secondaryHoldFired = false
 
-                if (!wasHold && now - slot.lastGlobalActionMs > globalCooldownMs) {
+                if (heldMs <= maxSecondaryTapMs && now - slot.lastGlobalActionMs > globalCooldownMs) {
                     slot.lastGlobalActionMs = now
                     when (finger) {
                         1 -> { setBadge(slot, "BACK", now + 500); listener.onBack() }

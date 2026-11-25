@@ -12,6 +12,6 @@ Gestures:
 * 1 or 2 hands: Spawns 1 cursor (Cyan) or 2 cursors (Cyan + Magenta)
 * Thumb + Index: Quick pinch = Tap | Double pinch = Double click | Drag = Swipe | Hold = Long press
 * Both hands pinch: Pinch-to-Zoom
-* Thumb + Middle: Quick pinch = Back | Hold = Notifications
-* Thumb + Ring: Quick pinch = Home | Hold = Volume Up
-* Thumb + Pinky: Quick pinch = Recents | Hold = Volume Down
+* Thumb + Middle: Quick pinch = Back
+* Thumb + Ring: Quick pinch = Home
+* Thumb + Pinky: Quick pinch = Recents

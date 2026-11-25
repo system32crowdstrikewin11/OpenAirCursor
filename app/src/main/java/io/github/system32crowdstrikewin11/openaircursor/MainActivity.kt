@@ -94,9 +94,9 @@ private val GESTURE_GUIDE = listOf(
     "1 or 2 hands" to "Spawns 1 cursor (Cyan) or 2 cursors (Cyan + Magenta)",
     "Thumb + Index" to "Quick pinch = Tap  •  Double pinch = 2x Click  •  Drag = Swipe  •  Hold = Long press",
     "Both hands pinch" to "Move apart or together to Pinch-to-Zoom",
-    "Thumb + Middle" to "Quick pinch = Back  •  Hold = Notifications",
-    "Thumb + Ring" to "Quick pinch = Home  •  Hold = Volume Up",
-    "Thumb + Pinky" to "Quick pinch = Recents  •  Hold = Volume Down"
+    "Thumb + Middle" to "Quick pinch = Back",
+    "Thumb + Ring" to "Quick pinch = Home",
+    "Thumb + Pinky" to "Quick pinch = Recents"
 )
 
 @Composable

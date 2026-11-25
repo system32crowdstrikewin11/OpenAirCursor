@@ -1,0 +1,5 @@
+OpenAirCursor v1.0.5
+- Simplified secondary gestures by removing hold-for-notifications and hold-for-volume actions to reduce accidental triggers.
+- Kept fast, direct pinch-to-click tracking alongside landscape rotation support.
+- Back, Home, and Recents now trigger only on quick pinches so resting hands do not fire navigation actions.
+- Guarded display rotation listener to avoid unnecessary metric refreshes.

@@ -15,7 +15,6 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
-import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -75,7 +74,6 @@ class AirCursorAccessibilityService :
     private val mainHandler = Handler(Looper.getMainLooper())
     private lateinit var windowManager: WindowManager
     private lateinit var displayManager: DisplayManager
-    private lateinit var audioManager: AudioManager
     private var overlayView: CursorOverlayView? = null
 
     private var cameraProvider: ProcessCameraProvider? = null
@@ -115,7 +113,6 @@ class AirCursorAccessibilityService :
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
-        audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         gestureEngine = HandGestureEngine(this)
         lastDisplayRotation = currentDisplayRotation()
         displayManager.registerDisplayListener(displayListener, mainHandler)
@@ -137,6 +134,7 @@ class AirCursorAccessibilityService :
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        updateCachedMetrics()
         handleDisplayChange()
     }
 
@@ -240,9 +238,9 @@ class AirCursorAccessibilityService :
 
     private fun handleDisplayChange() {
         val newRotation = currentDisplayRotation()
-        updateCachedMetrics()
         if (newRotation != lastDisplayRotation) {
             lastDisplayRotation = newRotation
+            updateCachedMetrics()
             imageAnalysis?.targetRotation = newRotation
             gestureEngine.requestReset()
             overlayView?.clearAll()
@@ -552,22 +550,9 @@ class AirCursorAccessibilityService :
         }
     }
 
-    override fun onVolumeUp() {
-        mainHandler.post {
-            audioManager.adjustVolume(AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
-        }
-    }
-
-    override fun onVolumeDown() {
-        mainHandler.post {
-            audioManager.adjustVolume(AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
-        }
-    }
-
     override fun onBack() { mainHandler.post { performGlobalAction(GLOBAL_ACTION_BACK) } }
     override fun onHome() { mainHandler.post { performGlobalAction(GLOBAL_ACTION_HOME) } }
     override fun onRecents() { mainHandler.post { performGlobalAction(GLOBAL_ACTION_RECENTS) } }
-    override fun onNotifications() { mainHandler.post { performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS) } }
 
     override fun onDestroy() {
         runCatching { displayManager.unregisterDisplayListener(displayListener) }
