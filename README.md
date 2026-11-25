@@ -50,4 +50,4 @@ Release builds produce an unsigned APK by default (compatible with F-Droid's sig
 
 Copyright (C) 2026 Dark
 
-Licensed under the [GNU General Public License v3.0](LICENSE) (or, at your option, any later version).
+Licensed under the [GNU General Public License v3.0](LICENSE)
