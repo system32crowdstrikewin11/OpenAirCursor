@@ -1,0 +1,4 @@
+OpenAirCursor v1.0.6
+- Simplified controls to Index (tap/drag/long press) and quick Middle pinch (Back) to eliminate accidental navigation and volume triggers.
+- Improved keyboard typing accuracy by tightening double-tap snap radius to 26dp, speeding up tap strokes to 35ms, and raising long-press threshold to 720ms.
+- Kept fast 1.0.3 tracking smoothness alongside landscape rotation support.
