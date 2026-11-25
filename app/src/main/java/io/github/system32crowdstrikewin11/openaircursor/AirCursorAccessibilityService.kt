@@ -14,6 +14,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PixelFormat
+import android.hardware.display.DisplayManager
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
@@ -21,7 +22,9 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.util.Size
+import android.view.Display
 import android.view.Gravity
+import android.view.Surface
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import androidx.camera.core.CameraSelector
@@ -71,10 +74,12 @@ class AirCursorAccessibilityService :
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private lateinit var windowManager: WindowManager
+    private lateinit var displayManager: DisplayManager
     private lateinit var audioManager: AudioManager
     private var overlayView: CursorOverlayView? = null
 
     private var cameraProvider: ProcessCameraProvider? = null
+    private var imageAnalysis: ImageAnalysis? = null
     private var cameraExecutor: ExecutorService? = null
     private var handLandmarker: HandLandmarker? = null
     private lateinit var gestureEngine: HandGestureEngine
@@ -83,8 +88,17 @@ class AirCursorAccessibilityService :
     @Volatile private var cachedW = 1080f
     @Volatile private var cachedH = 2400f
     @Volatile private var cachedDensity = 3f
-    @Volatile private var lastFrameW = 240
-    @Volatile private var lastFrameH = 320
+    @Volatile private var lastDisplayRotation = Surface.ROTATION_0
+
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) = Unit
+        override fun onDisplayRemoved(displayId: Int) = Unit
+        override fun onDisplayChanged(displayId: Int) {
+            if (displayId == Display.DEFAULT_DISPLAY) {
+                handleDisplayChange()
+            }
+        }
+    }
 
     // Reusable frame buffers
     private var rawBuffer: Bitmap? = null
@@ -100,8 +114,11 @@ class AirCursorAccessibilityService :
         lifecycleRegistry = LifecycleRegistry(this)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         gestureEngine = HandGestureEngine(this)
+        lastDisplayRotation = currentDisplayRotation()
+        displayManager.registerDisplayListener(displayListener, mainHandler)
         updateCachedMetrics()
     }
 
@@ -120,7 +137,7 @@ class AirCursorAccessibilityService :
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        updateCachedMetrics()
+        handleDisplayChange()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
@@ -154,6 +171,8 @@ class AirCursorAccessibilityService :
     fun stopTracking(onDone: (() -> Unit)? = null) {
         mainHandler.post {
             isTracking = false
+            imageAnalysis = null
+            gestureEngine.requestReset()
             runCatching { cameraProvider?.unbindAll() }
             if (lifecycleRegistry.currentState.isAtLeast(Lifecycle.State.STARTED)) {
                 lifecycleRegistry.currentState = Lifecycle.State.CREATED
@@ -215,6 +234,21 @@ class AirCursorAccessibilityService :
         }
     }
 
+    private fun currentDisplayRotation(): Int {
+        return displayManager.getDisplay(Display.DEFAULT_DISPLAY)?.rotation ?: Surface.ROTATION_0
+    }
+
+    private fun handleDisplayChange() {
+        val newRotation = currentDisplayRotation()
+        updateCachedMetrics()
+        if (newRotation != lastDisplayRotation) {
+            lastDisplayRotation = newRotation
+            imageAnalysis?.targetRotation = newRotation
+            gestureEngine.requestReset()
+            overlayView?.clearAll()
+        }
+    }
+
     private fun updateCachedMetrics() {
         cachedDensity = resources.displayMetrics.density
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -249,6 +283,13 @@ class AirCursorAccessibilityService :
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode =
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+        view.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or_, ob ->
+            val w = r - l
+            val h = b - t
+            if (w > 0 && h > 0 && (w != or_ - ol || h != ob - ot)) {
+                updateCachedMetrics()
             }
         }
         windowManager.addView(view, params)
@@ -302,9 +343,9 @@ class AirCursorAccessibilityService :
             .setMinHandDetectionConfidence(0.55f)
             .setMinHandPresenceConfidence(0.55f)
             .setMinTrackingConfidence(0.55f)
-            .setResultListener { result, _ ->
+            .setResultListener { result, inputImage ->
                 gestureEngine.processResult(
-                    result, cachedW, cachedH, cachedDensity, lastFrameW, lastFrameH
+                    result, cachedW, cachedH, cachedDensity, inputImage.width, inputImage.height
                 )
             }
             .setErrorListener { err ->
@@ -333,11 +374,15 @@ class AirCursorAccessibilityService :
                     )
                     .build()
 
+                val rotation = currentDisplayRotation()
+                lastDisplayRotation = rotation
                 val analysis = ImageAnalysis.Builder()
                     .setResolutionSelector(resolutionSelector)
+                    .setTargetRotation(rotation)
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                     .build()
+                imageAnalysis = analysis
 
                 analysis.setAnalyzer(cameraExecutor!!) { imageProxy ->
                     analyzeFrame(imageProxy)
@@ -380,9 +425,6 @@ class AirCursorAccessibilityService :
             val swap = rot == 90 || rot == 270
             val outW = if (swap) h else w
             val outH = if (swap) w else h
-            lastFrameW = outW
-            lastFrameH = outH
-
             val outBmp = frameRing[ringIdx]?.takeIf { it.width == outW && it.height == outH }
                 ?: Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888).also { frameRing[ringIdx] = it }
             ringIdx = (ringIdx + 1) % frameRing.size
@@ -528,6 +570,7 @@ class AirCursorAccessibilityService :
     override fun onNotifications() { mainHandler.post { performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS) } }
 
     override fun onDestroy() {
+        runCatching { displayManager.unregisterDisplayListener(displayListener) }
         stopTracking()
         overlayView?.let { runCatching { windowManager.removeView(it) } }
         overlayView = null

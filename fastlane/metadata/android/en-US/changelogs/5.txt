@@ -1,0 +1,5 @@
+OpenAirCursor v1.0.4 (Hotfix)
+- Fixed camera rotation and cursor tracking in landscape mode (Landscape-Left and Landscape-Right).
+- Added DisplayManager rotation listener to dynamically update CameraX targetRotation and screen bounds.
+- Reset cursor filters and in-progress drag state cleanly on display rotation.
+- Adjusted mini camera preview size and placement for landscape screens.

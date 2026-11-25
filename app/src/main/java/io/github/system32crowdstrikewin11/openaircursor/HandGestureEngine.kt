@@ -118,6 +118,8 @@ class HandGestureEngine(
 
     private val slots = arrayOf(HandSlot(0), HandSlot(1))
 
+    @Volatile private var pendingReset = false
+
     private var zoomActive = false
     private var zStart0X = 0f
     private var zStart0Y = 0f
@@ -140,6 +142,10 @@ class HandGestureEngine(
     private val globalCooldownMs = 600L
     private val dropoutGraceMs = 160L
 
+    fun requestReset() {
+        pendingReset = true
+    }
+
     fun processResult(
         result: HandLandmarkerResult,
         screenW: Float,
@@ -148,6 +154,13 @@ class HandGestureEngine(
         frameW: Int,
         frameH: Int
     ) {
+        if (pendingReset) {
+            pendingReset = false
+            for (slot in slots) slot.reset()
+            zoomActive = false
+            listener.onCursorsUpdated(emptyList(), emptyList())
+            return
+        }
         val now = SystemClock.uptimeMillis()
         val hands = result.landmarks()
         val handednessList = result.handedness()

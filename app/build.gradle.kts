@@ -196,8 +196,8 @@ android {
         applicationId = "io.github.system32crowdstrikewin11.openaircursor"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
 
         ndk {
             abiFilters += "arm64-v8a"

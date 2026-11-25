@@ -235,12 +235,13 @@ class CursorOverlayView(context: Context) : View(context) {
 
     private fun drawMiniPreview(canvas: Canvas, bmp: Bitmap) {
         val density = resources.displayMetrics.density
-        val boxW = 108f * density
+        val isLandscape = width > height
+        val boxW = (if (isLandscape) 132f else 108f) * density
         val aspect = bmp.height.toFloat() / bmp.width.toFloat().coerceAtLeast(1f)
-        val boxH = (boxW * aspect).coerceAtMost(210f * density)
+        val boxH = (boxW * aspect).coerceAtMost((if (isLandscape) 140f else 210f) * density)
 
         val marginRight = 14f * density
-        val marginTop = 52f * density
+        val marginTop = (if (isLandscape) 16f else 52f) * density
         val left = width - boxW - marginRight
         val top = marginTop
         previewRect.set(left, top, left + boxW, top + boxH)
