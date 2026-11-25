@@ -26,8 +26,6 @@ class HandGestureEngine(
             s2x: Float, s2y: Float, e2x: Float, e2y: Float
         )
         fun onBack()
-        fun onHome()
-        fun onRecents()
     }
 
     private data class PosSample(val t: Long, val x: Float, val y: Float)
@@ -90,9 +88,8 @@ class HandGestureEngine(
         var lastTapX = 0f
         var lastTapY = 0f
 
-        // 0 = none, 1 = middle (Back), 2 = ring (Home), 3 = pinky (Recents)
-        var secondaryFinger = 0
-        var secondaryStartTime = 0L
+        var middlePinching = false
+        var middleStartTime = 0L
 
         var lastGlobalActionMs = 0L
         var badge = ""
@@ -106,7 +103,7 @@ class HandGestureEngine(
             history.clear()
             indexPinching = false
             dragStarted = false
-            secondaryFinger = 0
+            middlePinching = false
         }
     }
 
@@ -130,8 +127,8 @@ class HandGestureEngine(
     private val secondaryUpRatio = 0.40f
     private val maxSecondaryTapMs = 450L
 
-    private val longPressMs = 650L
-    private val doublePinchWindowMs = 520L
+    private val longPressMs = 720L
+    private val doublePinchWindowMs = 360L
     private val globalCooldownMs = 600L
     private val dropoutGraceMs = 160L
 
@@ -308,8 +305,6 @@ class HandGestureEngine(
         val thumb = lm[4]
         val indexRatio = dist2D(thumb, lm[8], aspect) / palmSize
         val middleRatio = dist2D(thumb, lm[12], aspect) / palmSize
-        val ringRatio = dist2D(thumb, lm[16], aspect) / palmSize
-        val pinkyRatio = dist2D(thumb, lm[20], aspect) / palmSize
 
         // Only suppress clicks during a tightly closed fist (never locks out future clicks)
         val wrist = lm[0]
@@ -350,7 +345,7 @@ class HandGestureEngine(
         if (tightFist) {
             slot.indexPinching = false
             slot.dragStarted = false
-            slot.secondaryFinger = 0
+            slot.middlePinching = false
             slot.pinchProgress = 0f
             return
         }
@@ -371,7 +366,7 @@ class HandGestureEngine(
                 slot.indexPinching = true
                 slot.dragStarted = false
                 slot.indexStartTime = now
-                slot.secondaryFinger = 0
+                slot.middlePinching = false
 
                 val steady = slot.history.lastOrNull { now - it.t >= 50L }
                 if (steady != null && hypot(slot.x - steady.x, slot.y - steady.y) <= 24f * density) {
@@ -406,17 +401,13 @@ class HandGestureEngine(
                         else -> {
                             val sincePrev = now - slot.lastTapMs
                             val distPrev = hypot(slot.indexStartX - slot.lastTapX, slot.indexStartY - slot.lastTapY)
-                            if (slot.lastTapMs != 0L && sincePrev <= doublePinchWindowMs && distPrev <= 68f * density) {
-                                // Snap 2nd pinch to exact 1st tap spot so Reels/Shorts double-tap always hits
+                            if (slot.lastTapMs != 0L && sincePrev <= doublePinchWindowMs && distPrev <= 26f * density) {
+                                // Snap 2nd pinch to 1st tap only within 26dp (won't hijack neighboring keyboard keys)
                                 val tx = slot.lastTapX
                                 val ty = slot.lastTapY
                                 slot.lastTapMs = 0L
                                 setBadge(slot, "2X CLICK", now + 450)
-                                if (sincePrev <= 240L) {
-                                    listener.onTap(tx, ty)
-                                } else {
-                                    listener.onDoubleTap(tx, ty)
-                                }
+                                listener.onTap(tx, ty)
                             } else {
                                 slot.lastTapMs = now
                                 slot.lastTapX = slot.indexStartX
@@ -433,40 +424,19 @@ class HandGestureEngine(
 
         if (slot.indexPinching || zoomActive) return
 
-        // 2. Simple navigation gestures only: quick pinch for Back / Home / Recents
-        if (slot.secondaryFinger == 0) {
-            if (indexRatio > pinchUpRatio) {
-                var bestFinger = 0
-                var bestRatio = secondaryDownRatio
-                if (middleRatio < bestRatio) { bestRatio = middleRatio; bestFinger = 1 }
-                if (ringRatio < bestRatio) { bestRatio = ringRatio; bestFinger = 2 }
-                if (pinkyRatio < bestRatio) { bestRatio = pinkyRatio; bestFinger = 3 }
-
-                if (bestFinger != 0) {
-                    slot.secondaryFinger = bestFinger
-                    slot.secondaryStartTime = now
-                }
+        // 2. Single secondary gesture: quick Thumb + Middle pinch = Back
+        if (!slot.middlePinching) {
+            if (indexRatio > pinchUpRatio && middleRatio < secondaryDownRatio) {
+                slot.middlePinching = true
+                slot.middleStartTime = now
             }
-        } else {
-            val activeRatio = when (slot.secondaryFinger) {
-                1 -> middleRatio
-                2 -> ringRatio
-                else -> pinkyRatio
-            }
-
-            if (activeRatio > secondaryUpRatio) {
-                val finger = slot.secondaryFinger
-                val heldMs = now - slot.secondaryStartTime
-                slot.secondaryFinger = 0
-
-                if (heldMs <= maxSecondaryTapMs && now - slot.lastGlobalActionMs > globalCooldownMs) {
-                    slot.lastGlobalActionMs = now
-                    when (finger) {
-                        1 -> { setBadge(slot, "BACK", now + 500); listener.onBack() }
-                        2 -> { setBadge(slot, "HOME", now + 600); listener.onHome() }
-                        3 -> { setBadge(slot, "RECENTS", now + 600); listener.onRecents() }
-                    }
-                }
+        } else if (middleRatio > secondaryUpRatio) {
+            val heldMs = now - slot.middleStartTime
+            slot.middlePinching = false
+            if (heldMs <= maxSecondaryTapMs && now - slot.lastGlobalActionMs > globalCooldownMs) {
+                slot.lastGlobalActionMs = now
+                setBadge(slot, "BACK", now + 500)
+                listener.onBack()
             }
         }
     }

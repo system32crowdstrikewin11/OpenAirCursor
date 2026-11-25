@@ -476,7 +476,7 @@ class AirCursorAccessibilityService :
             val (cx, cy) = clampPoint(x, y)
             overlayView?.triggerClickRipple(cx, cy)
             val gesture = GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(tapPath(cx, cy), 0L, 55L))
+                .addStroke(GestureDescription.StrokeDescription(tapPath(cx, cy), 0L, 35L))
                 .build()
             dispatchSafe(gesture)
         }
@@ -551,8 +551,6 @@ class AirCursorAccessibilityService :
     }
 
     override fun onBack() { mainHandler.post { performGlobalAction(GLOBAL_ACTION_BACK) } }
-    override fun onHome() { mainHandler.post { performGlobalAction(GLOBAL_ACTION_HOME) } }
-    override fun onRecents() { mainHandler.post { performGlobalAction(GLOBAL_ACTION_RECENTS) } }
 
     override fun onDestroy() {
         runCatching { displayManager.unregisterDisplayListener(displayListener) }

@@ -17,8 +17,6 @@ actions through Android's Accessibility Service.
 | **Thumb + Index** | Quick pinch = Tap · Double pinch = 2x Click · Drag = Swipe · Hold = Long press |
 | **Both hands pinch** | Pinch-to-Zoom |
 | **Thumb + Middle** | Quick pinch = Back |
-| **Thumb + Ring** | Quick pinch = Home |
-| **Thumb + Pinky** | Quick pinch = Recents |
 
 ## Requirements
 
